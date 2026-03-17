@@ -106,151 +106,59 @@ http://localhost:3000
    * FPS (e.g. 5)
 4. Click **Process & Send**
 
----
+ignore the frame input it is a failed function.
 
-
-# 🌐 Endpoints
-
-## `/webint` (POST)
-
-Uploads processed data.
-
-### Body (FormData):
-
-```
-packed    → base64 encoded byte stream
-password  → server password
-source    → original file
-```
-
----
-
-## `/preview`
-
-Displays reconstructed frames in browser.
-
-* Auto-scaled
-* Plays frames sequentially
-* Simulates Roblox screen
-
----
-
-## `/source`
-
-Returns the **last uploaded file**
-
-* Image → shown in browser
-* Video → playable in browser
-
----
-
-## `/info`
-
-Returns total byte count:
-
-```json
-{ "size": 12345 }
-```
-
----
-
-## `/byte?i=N`
-
-Returns a single byte:
-
-```json
-{ "value": "10101010" }
-```
-
-Used by Roblox to reconstruct data.
+## to view what it will look like on the screen, in the browser, go to `/preview`
 
 ---
 
 # 🎮 Roblox Integration
 
-## Step 1: Get total size
+use `/image/send` to send data to server with the post function on the transmitter.
+in headers use cookies:
+* `cookie: cordX` to set x variable (req. value)
+* `cookie: cordY` to set y variable (req. value)
+* `cookie: frame` to set frame variable (req. value)
+* `cookie: debug` to toggle debug console output (default off, no value needed)
 
-```
-GET /info
-```
+use `/image/read` to get the pixel data at the selected position from the server as a get function.
+* `increment: true` to make the x and y increment after each get request not needing to set the x, y and frame evfery time
 
----
+## Selective pixel
 
-## Step 2: Read bytes sequentially
+1. counter keeping track of the position
+2. send x and y (and frame if video) to the server from the counter
+3. get pixel and display it
+4. increment counter and repeat
 
-```
-GET /byte?i=0
-GET /byte?i=1
-GET /byte?i=2
-...
-```
+## Automatic increment
+1. at the start, reset x, y, frame to 0
+2. in transmitter, have `increment: true` and send a get request
+3. when recieved get, display and increment a counter that has the position paralel to the server
+4. repeat from 2
 
-Each response:
+## Automatic increment for videos
 
-```json
-{ "value": "10101010" }
-```
-
----
-
-## Step 3: Reconstruct
-
-On Roblox side:
-
-* Read header:
-
-  * byte 0 → width
-  * byte 1 → height
-  * byte 2-3 → frame count
-* Remaining bytes → pixel data
-
----
-
-# 📊 Data Format
-
-```
-Byte Layout:
-
-0 → width
-1 → height
-2 → frameCount (high byte)
-3 → frameCount (low byte)
-4 → compact flag
-5 → reserved
-
-6+ → pixel data
-```
-
----
-
-## Pixel Format
-
-```
-RrGgBbxx (8 bits)
-
-RR → red   (0–3)
-GG → green (0–3)
-BB → blue  (0–3)
-xx → unused
-```
+do the same as normal autoincrement, but once a new frame comes into place significated by the lsb reset position counters to 0 to prevent shifts stacking.
 
 ---
 
 # ⚠️ Limits
 
 * Roblox: **1 byte per request**
-* Large videos = many requests
-* Base64 adds **~33% overhead**
-* 64×64 video = large payload
+* max resolution is 255x255 (not full 256)
+* lowest sample rate for video is 1fps
+* when too many requests are being sent from roblox, it might reach the cap and stop transmitting
 
 ---
 
 # 💡 Performance Tips
 
 * Use **lower resolution** (e.g. 32×32 or 16×16)
-* Lower FPS (5–10 recommended)
-* Cache bytes on Roblox side
+* Lower FPS (1–5 recommended)
 * Avoid unnecessary re-requests
+* i got the fastest but still usable output with a not clock and a 0.07s delay
+* after each frame, the lsb goes high for one frame, usefull to reset position on counter back to [0,0] in case a shift happened
 
 ---
 
@@ -266,7 +174,7 @@ Fix by using chunked base64 conversion (already implemented).
 
 * Check password
 * Check payload size
-* Try smaller resolution
+* Try smaller resolution and framerate
 
 ---
 
@@ -274,14 +182,6 @@ Fix by using chunked base64 conversion (already implemented).
 
 * Ensure data uploaded first
 * Check `/preview` after `/webint`
-
----
-
-# 🧠 Advanced Ideas (optional)
-
-* Delta frame encoding (only send changed pixels)
-* Run-length encoding (compress repeating values)
-* Bit-packing (2-bit grayscale)
 
 ---
 
