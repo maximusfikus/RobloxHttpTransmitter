@@ -20,9 +20,10 @@
 * `/read` → read pixel data
   * `increment: true` to auto increment x and y without having to send position data
 * Supports:
-
   * Image upload
   * Video upload
+*password on web interface is `femboy69` :3
+* for video upload i recommend checking the compress checkbox because it might be to large to send the regular way
 
 ---
 
@@ -107,11 +108,6 @@ http://localhost:3000
 
 ---
 
-## Paste Image (Ctrl+V)
-
-Just press **Ctrl+V** in the page — it works the same as upload.
-
----
 
 # 🌐 Endpoints
 
