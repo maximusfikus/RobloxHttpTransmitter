@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTPScreen</title>
+    <style>
+        :root {
+            --bg-color: #222;
+            --text-color: #eee;
+            --accent-color: #4CAF50;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: Arial, sans-serif;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr;
+            grid-template-areas:
+                "left right";
+            height: 90vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        #left {
+            grid-area: left;
+            padding: 20px;
+            border-right: 1px solid var(--accent-color);
+        }
+
+        #right {
+            grid-area: right;
+            padding: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="left">
+        <h1>HTTPScreen</h1>
+        <p>Welcome to the http transmitter web demo</p>
+        <br>
+        <label>Cookie: <select name="cookie" id="cookie">
+                <option value="adress">adress</option>
+                <option value="set">set</option>
+                <option value="reset">reset</option>
+                <option value="random">random</option>
+                <option value="process">process</option>
+            </select></label>
+        <br>
+        <label>Value: <input type="text" id="value" placeholder="Enter 8-bit binary value"></label>
+        <br>
+        <label>Password: <input type="text" id="password" placeholder="Password"></label>
+        <br>
+        <button id="send">Send</button>
+        <br>
+        <pre id="outputval"></pre>
+    </div>
+    <div id="right">
+        <label>Storage:
+            <pre id="storage"></pre>
+        </label>
+    </div>
+
+    <script>
+        output = document.getElementById("outputval");
+        storageDisplay = document.getElementById("storage");
+        sendBtn = document.getElementById("send");
+        cookieSelect = document.getElementById("cookie");
+        value = document.getElementById("value");
+        password = document.getElementById("password");
+
+        sendBtn.addEventListener("click", () => {
+            const cookie = cookieSelect.value;
+            const val = value.value;
+
+            console.log(`Sending request with cookie: ${cookie}, value: ${val}, password: ${password.value}`);
+
+            fetch("/send", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ cookie, value: val, password: password.value })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    output.textContent = JSON.stringify(data, null, 2);
+                    // Update storage display
+                    fetch("/debug")
+                        .then(res => res.json())
+                        .then(storageData => {
+                            storageDisplay.textContent = JSON.stringify(storageData, null, 2);
+                        });
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    output.textContent = "Error: " + error.message;
+                });
+        });
+    </script>
+</body>
+
+</html>
