@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>WebInt Image/Video Interface</title>
+    <style>
+        :root {
+            --primary-bg: #1e1e1e;
+            --secondary-bg: #2e2e2e;
+            --accent: #4caf50;
+            --text: #ffffff;
+        }
+
+        body {
+            background-color: var(--primary-bg);
+            color: var(--text);
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+
+        input,
+        select,
+        button {
+            margin-top: 5px;
+            padding: 5px;
+            background-color: var(--secondary-bg);
+            color: var(--text);
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: var(--accent);
+            color: var(--primary-bg);
+        }
+
+        canvas {
+            margin-top: 10px;
+            border: 1px solid var(--accent);
+        }
+
+        #frameControl {
+            display: none;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>WebInt Image/Video Interface</h2>
+
+    <label>
+        Mode:
+        <select id="modeSelect">
+            <option value="image">Image</option>
+            <option value="video">Video</option>
+        </select>
+    </label>
+
+    <div id="imageInputs">
+        <label>Upload Image:
+            <input type="file" id="imageFile" accept="image/*">
+        </label>
+        <label>Width:
+            <input type="number" id="imgWidth" value="64">
+        </label>
+        <label>Height:
+            <input type="number" id="imgHeight" value="64">
+        </label>
+    </div>
+
+    <div id="videoInputs" style="display:none;">
+        <label>Upload Video:
+            <input type="file" id="videoFile" accept="video/*">
+        </label>
+        <label>Width:
+            <input type="number" id="vidWidth" value="64">
+        </label>
+        <label>Height:
+            <input type="number" id="vidHeight" value="64">
+        </label>
+        <label>Target FPS:
+            <input type="number" id="vidFps" value="5">
+        </label>
+    </div>
+
+    <div id="frameControl">
+        <label>Frame:
+            <input type="number" id="frameNumber" value="0" min="0">
+        </label>
+    </div>
+
+    <label for="pswrd">Password:
+        <input id="pswrd" type="text"></input>
+    </label>
+
+    <label>Compact:
+        <input id="compactCheckbox" type="checkbox"></input>
+    </label>
+
+    <button id="processBtn">Process & Send</button>
+
+    <p id="status"></p>
+
+    <canvas id="preview" width="64" height="64"></canvas>
+
+    <script>
+        const modeSelect = document.getElementById("modeSelect");
+        const imageInputs = document.getElementById("imageInputs");
+        const videoInputs = document.getElementById("videoInputs");
+        const frameControl = document.getElementById("frameControl");
+        const frameNumberInput = document.getElementById("frameNumber");
+        const passwordInput = document.getElementById("pswrd");
+        const compactCheckbox = document.getElementById("compactCheckbox");
+        const statusText = document.getElementById("status");
+        const previewCanvas = document.getElementById("preview");
+        const ctx = previewCanvas.getContext("2d");
+
+        let videoElement = null;
+        let videoFrames = [];
+
+        modeSelect.addEventListener("change", () => {
+            if (modeSelect.value === "image") {
+                imageInputs.style.display = "block";
+                videoInputs.style.display = "none";
+                frameControl.style.display = "none";
+            } else {
+                imageInputs.style.display = "none";
+                videoInputs.style.display = "block";
+                frameControl.style.display = "block";
+            }
+        });
+
+        // Convert RGB to a packed value (0-255)
+        function rgb2(pixel) {
+            const r = pixel[0] >> 6;
+            const g = pixel[1] >> 6;
+            const b = pixel[2] >> 6;
+
+            if (compactCheckbox.checked) {
+                // compact numeric mode
+                return (r << 6) | (g << 4) | (b << 2);
+            } else {
+                // non-compact mode stored as byte (0-255)
+                return (r << 6) | (g << 4) | (b << 2);
+            }
+        }
+
+        function drawFrame(frameData, width, height) {
+            const imgData = ctx.createImageData(width, height);
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    const val = frameData[y][x];
+                    const r = ((val >> 6) & 3) << 6;
+                    const g = ((val >> 4) & 3) << 6;
+                    const b = ((val >> 2) & 3) << 6;
+                    imgData.data[idx] = r;
+                    imgData.data[idx + 1] = g;
+                    imgData.data[idx + 2] = b;
+                    imgData.data[idx + 3] = 255;
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        async function processImage(file, width, height) {
+            return new Promise(resolve => {
+                const img = new Image();
+                img.onload = () => {
+                    previewCanvas.width = width;
+                    previewCanvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const imgData = ctx.getImageData(0, 0, width, height);
+                    const frame = [];
+                    for (let y = 0; y < height; y++) {
+                        const row = [];
+                        for (let x = 0; x < width; x++) {
+                            const idx = (y * width + x) * 4;
+                            const pix = [imgData.data[idx], imgData.data[idx + 1], imgData.data[idx + 2]];
+                            row.push(rgb2(pix));
+                        }
+                        frame.push(row);
+                    }
+                    resolve([frame]);
+                };
+                img.src = URL.createObjectURL(file);
+            });
+        }
+
+        async function processVideo(file, width, height, targetFps) {
+            return new Promise(resolve => {
+                videoFrames = [];
+                videoElement = document.createElement("video");
+                videoElement.src = URL.createObjectURL(file);
+                videoElement.muted = true;
+                videoElement.playbackRate = 1;
+
+                videoElement.onloadedmetadata = () => {
+                    const duration = videoElement.duration;
+                    const videoFps = 30; // approx
+                    const step = Math.max(1, Math.round(videoFps / targetFps));
+                    let currentFrame = 0;
+
+                    function captureFrame() {
+                        if (videoElement.ended || currentFrame * step / videoFps > duration) {
+                            resolve(videoFrames);
+                            return;
+                        }
+
+                        ctx.drawImage(videoElement, 0, 0, width, height);
+                        const imgData = ctx.getImageData(0, 0, width, height);
+                        const frame = [];
+                        for (let y = 0; y < height; y++) {
+                            const row = [];
+                            for (let x = 0; x < width; x++) {
+                                const idx = (y * width + x) * 4;
+                                const pix = [imgData.data[idx], imgData.data[idx + 1], imgData.data[idx + 2]];
+                                row.push(rgb2(pix));
+                            }
+                            frame.push(row);
+                        }
+                        videoFrames.push(frame);
+                        currentFrame++;
+                        videoElement.currentTime += step / videoFps;
+                        videoElement.onseeked = captureFrame;
+                    }
+
+                    videoElement.currentTime = 0;
+                    videoElement.onseeked = captureFrame;
+                };
+            });
+        }
+
+        frameNumberInput.addEventListener("input", () => {
+            const f = parseInt(frameNumberInput.value);
+            if (videoFrames[f]) drawFrame(videoFrames[f], videoFrames[f][0].length, videoFrames[f].length);
+        });
+
+        function packFrames(frames, width, height, compact) {
+            const frameCount = frames.length;
+            const buf = new Uint8Array(6 + width * height * frameCount);
+            buf[0] = width;
+            buf[1] = height;
+            buf[2] = (frameCount >> 8) & 0xFF;
+            buf[3] = frameCount & 0xFF;
+            buf[4] = compact ? 1 : 0;
+            buf[5] = 0; // reserved
+            let ptr = 6;
+
+            for (let f = 0; f < frameCount; f++) {
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        buf[ptr++] = frames[f][y][x];
+                    }
+                }
+            }
+
+            return uint8ToBase64(buf);
+        }
+
+        function uint8ToBase64(bytes) {
+            let binary = "";
+            const chunkSize = 0x8000; // 32k chunks
+
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                const chunk = bytes.subarray(i, i + chunkSize);
+                binary += String.fromCharCode.apply(null, chunk);
+            }
+
+            return btoa(binary);
+        }
+
+        document.getElementById("processBtn").addEventListener("click", async () => {
+            const mode = modeSelect.value;
+            let frames = [], width = 0, height = 0;
+            let sourceFile = null;
+
+            console.log("source: ", (mode === "image") ? document.getElementById("imageFile").files[0] : document.getElementById("videoFile").files[0]);
+
+            if (mode === "image") {
+                const file = document.getElementById("imageFile").files[0];
+                sourceFile = file ? file.name : null;
+                width = parseInt(document.getElementById("imgWidth").value);
+                height = parseInt(document.getElementById("imgHeight").value);
+                if (!file) return alert("Select an image");
+                frames = await processImage(file, width, height);
+            } else {
+                const file = document.getElementById("videoFile").files[0];
+                sourceFile = file ? file.name : null;
+                width = parseInt(document.getElementById("vidWidth").value);
+                height = parseInt(document.getElementById("vidHeight").value);
+                const fps = parseInt(document.getElementById("vidFps").value);
+                if (!file) return alert("Select a video");
+                frames = await processVideo(file, width, height, fps);
+                frameNumberInput.max = frames.length - 1;
+                drawFrame(frames[0], width, height);
+            }
+
+            const packed = packFrames(frames, width, height, compactCheckbox.checked);
+
+            fetch("/webint", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ packed, password: passwordInput.value, source: sourceFile })
+            })
+                .then(r => r.json())
+                .then(res => {
+                    console.log(res);
+                    if (res.error) {
+                        statusText.textContent = "Error: " + res.error;
+                        statusText.style.color = "red";
+                    } else {
+                        statusText.textContent = "Successfully sent to server!";
+                        statusText.style.color = "green";
+                    }
+                })
+                .catch(e => {
+                    console.error(e);
+                    statusText.textContent = "Failed to send data";
+                    statusText.style.color = "red";
+                });
+        });
+    </script>
+</body>
+
+</html>
