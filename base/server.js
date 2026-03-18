@@ -28,7 +28,7 @@ let storage = {};
 let adress = "00000000"; // Default address (can be changed via cookie command)
 
 
-const pswrd_web = "1234"; // Change this to your desired password for the web interface
+//const pswrd_web = "1234"; no method for web interface yet// Change this to your desired password for the web interface
 const pswrd_api = "abcd"; // Change this to your desired password for the API (if needed)
 
 let debugMode = false; // Set to true to enable debug mode (prints more info to console)
@@ -100,6 +100,7 @@ RECEIVE DATA FROM HTTP TRANSMITTER
 Reads headers:
 value
 cookie
+password
 */
 app.post("/send", (req, res) => {
     const value = req.headers["value"] || req.query.value || req.body.value;
