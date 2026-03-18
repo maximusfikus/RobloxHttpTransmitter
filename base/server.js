@@ -24,6 +24,7 @@ Each cookie gets its own storage entry:
    cookie2 : { value: "10101010" }
 }
 */
+
 let storage = {};
 let adress = "00000000"; // Default address (can be changed via cookie command)
 
@@ -43,8 +44,9 @@ Input:
     cookie = device identifier
 
 Output:
-    return 8-bit binary string to store
+    return 8-bit binary string to be sent back to transmitter (can be the same as input or processed)
 */
+
 function processValue(value, cookie) {
     if (cookie === "debug") {
         debugMode = !debugMode; // Toggle debug mode
