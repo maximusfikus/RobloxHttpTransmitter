@@ -25,6 +25,12 @@
 * password on web interface is `femboy69` :3
 * for video upload i recommend checking the compress checkbox because it might be to large to send the regular way
 
+### Base structure
+
+* serves as an example on how to make an api
+* can process data, save and load data and do a random function
+* the base is made to work in the file structure with the main server, wont work standalone.
+
 ---
 
 # 📦 Installation
