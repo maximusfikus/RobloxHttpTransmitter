@@ -26,7 +26,7 @@ Each cookie gets its own storage entry:
 */
 
 let storage = {};
-let adress = "00000000"; // Default address (can be changed via cookie command)
+let address = "00000000"; // Default address (can be changed via cookie command)
 
 
 //const pswrd_web = "1234"; no method for web interface yet// Change this to your desired password for the web interface
@@ -60,18 +60,18 @@ function processValue(value, cookie) {
         return value; // Return the original value without processing
     }
 
-    if (cookie === "adress") {
-        adress = value; // Update the address variable
-        debugMode ? console.log("Address updated to:", adress) : null;
+    if (cookie === "address") {
+        address = value; // Update the address variable
+        debugMode ? console.log("Address updated to:", address) : null;
         return value; // Return the original value without processing
     }
 
     if (cookie === "set") {
-        if (!storage[adress]) {
-            storage[adress] = { value: "00000000" };
+        if (!storage[address]) {
+            storage[address] = { value: "00000000" };
         }
-        storage[adress].value = value;
-        debugMode ? console.log(`Value at address ${adress} set to:`, value) : null;
+        storage[address].value = value;
+        debugMode ? console.log(`Value at address ${address} set to:`, value) : null;
         return value; // Return the original value without processing
     }
 
@@ -144,11 +144,11 @@ app.post("/send", (req, res) => {
 ====================================
 READ DATA (FOR OUTPUT TRANSMITTER)
 ====================================
-Uses adress header to select value
+Uses address header to select value
 */
 app.get("/read", (req, res) => {
     const password = req.headers["password"] || req.query.password;
-    const addr = req.headers["adress"] || req.query.adress || adress || "00000000"; // Use provided address or default
+    const addr = req.headers["address"] || req.query.address || address || "00000000"; // Use provided address or default
 
     if (password !== pswrd_api) {
         debugMode ? console.log(`Password ${password} is invalid`) : null;
