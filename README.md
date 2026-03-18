@@ -22,7 +22,7 @@
 * Supports:
   * Image upload
   * Video upload
-*password on web interface is `femboy69` :3
+* password on web interface is `femboy69` :3
 * for video upload i recommend checking the compress checkbox because it might be to large to send the regular way
 
 ---
@@ -51,13 +51,18 @@ npm install express multer cors
 
 ```
 project/
+├── base/
+|   ├── server.js
+|   └── index.html
 ├── image/
 |   ├── server.js
 |   └── index.html
 ├── node_modules/
 |   └── ...
 ├── package.json
-└── package-lock.json
+├── package-lock.json
+├── index.html
+└── server.js
 ```
 
 ---
