@@ -45,8 +45,7 @@ Input:
 Output:
     return 8-bit binary string to store
 */
-function processValue(value, cookie)
-{
+function processValue(value, cookie) {
     if (cookie === "debug") {
         debugMode = !debugMode; // Toggle debug mode
         console.log("Debug mode is now ", debugMode ? "ON" : "OFF");
@@ -102,30 +101,26 @@ Reads headers:
 value
 cookie
 */
-app.post("/send", (req,res)=>
-{
+app.post("/send", (req, res) => {
     const value = req.headers["value"] || req.query.value || req.body.value;
     const cookie = req.headers["cookie"] || req.query.cookie || req.body.cookie;
     const password = req.headers["password"] || req.query.password || req.body.password;
 
     debugMode ? console.log("Received /send request with value:", value, "cookie:", cookie, "password:", password) : null;
 
-    if(password !== pswrd_api)
-    {
+    if (password !== pswrd_api) {
         debugMode ? console.log(`Password ${password} is invalid`) : null;
-        return res.json({error:"Invalid password"});
+        return res.json({ error: "Invalid password" });
     }
 
-    if(!value || !cookie)
-    {
+    if (!value || !cookie) {
         debugMode ? console.log("Missing value or cookie header") : null;
-        return res.json({error:"Missing value or cookie header"});
+        return res.json({ error: "Missing value or cookie header" });
     }
 
-    if(!/^[01]{8}$/.test(value))
-    {
+    if (!/^[01]{8}$/.test(value)) {
         debugMode ? console.log("Invalid value format:", value) : null;
-        return res.json({error:"value must be 8 bit binary"});
+        return res.json({ error: "value must be 8 bit binary" });
     }
 
     const processed = processValue(value, cookie);
@@ -133,9 +128,9 @@ app.post("/send", (req,res)=>
     debugMode ? console.log(`Processed value for cookie ${cookie}:`, processed) : null;
 
     res.json({
-        input:value,
-        output:processed,
-        cookie:cookie,
+        input: value,
+        output: processed,
+        cookie: cookie,
         value: processed
     });
 });
@@ -146,17 +141,11 @@ app.post("/send", (req,res)=>
 ====================================
 READ DATA (FOR OUTPUT TRANSMITTER)
 ====================================
-Uses cookie header to select value
+Uses adress header to select value
 */
-app.get("/read", (req,res)=>
-{
-    const cookie = req.headers["cookie"];
-
-    if(!cookie || !storage[cookie])
-        return res.json({value:"00000000"});
-
-    res.json({
-        value:storage[cookie].value
+app.get("/read", (req, res) => {
+    return res.json({
+        value: storage[adress].value || "00000000"
     });
 });
 
@@ -165,13 +154,12 @@ app.get("/read", (req,res)=>
 /*
 DEBUG VIEW
 */
-app.get("/debug",(req,res)=>
-{
+app.get("/debug", (req, res) => {
     res.json(storage);
 });
 
 
 
-app.listen(PORT, ()=>{
-    console.log("Server running on port",PORT);
+app.listen(PORT, () => {
+    console.log("Server running on port", PORT);
 });
