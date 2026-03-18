@@ -147,8 +147,8 @@ READ DATA (FOR OUTPUT TRANSMITTER)
 Uses adress header to select value
 */
 app.get("/read", (req, res) => {
-    const password = req.headers["password"] || req.query.password || req.body.password;
-    const addr = req.headers["adress"] || req.query.adress || req.body.adress || adress; // Use provided address or default
+    const password = req.headers["password"] || req.query.password;
+    const addr = req.headers["adress"] || req.query.adress || adress || "00000000"; // Use provided address or default
 
     if (password !== pswrd_api) {
         debugMode ? console.log(`Password ${password} is invalid`) : null;
