@@ -1,20 +1,20 @@
 const express = require("express");
-const cors = require("cors");
 const path = require("path");
 const multer = require("multer");
 
-const app = express();
+const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
-const upload = multer({ storage: multer.memoryStorage() })
-
-app.use(cors());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json({ limit: "100mb" }));
-app.use(express.urlencoded({ limit: "100mb", extended: true }));
-
-app.get("/", (req, res) => {
+router.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "index.html"));
 });
+
+/* Example endpoint (keep your real ones here) */
+router.post("/upload", upload.single("file"), (req,res)=>{
+    res.json({status:"ok"});
+});
+
+module.exports = router;
 
 const PORT = 3000;
 
@@ -88,7 +88,7 @@ SEND COMMAND FROM ROBLOX
 ==============================
 */
 
-app.post("/send", (req, res) => {
+router.post("/send", (req, res) => {
     const value = req.headers["value"] || req.body.value || req.query.value;
     const cookie = req.headers["cookie"] || req.query.cookie;
 
@@ -120,7 +120,7 @@ READ PIXEL
 ==============================
 */
 
-app.get("/read", (req, res) => {
+router.get("/read", (req, res) => {
     const increment = req.headers["increment"] || req.query.increment;
 
     if (
@@ -158,7 +158,7 @@ UPLOAD IMAGE / VIDEO
 ==============================
 */
 
-app.post("/webint", (req, res) => {
+router.post("/webint", (req, res) => {
     const data = req.body;
 
     if (password !== data.password) {
@@ -253,7 +253,7 @@ SOURCE FILE
 ==============================
 */
 
-app.get("/source", (req, res) => {
+router.get("/source", (req, res) => {
 
     if (!lastSource)
         return res.send("This doent work, at least try /preview");
@@ -269,7 +269,7 @@ PREVIEW
 ==============================
 */
 
-app.get("/preview", (req, res) => {
+router.get("/preview", (req, res) => {
 
     if (!packedData)
         return res.send("no data uploaded")
@@ -349,7 +349,7 @@ DEBUG
 ==============================
 */
 
-app.get("/debug", (req, res) => {
+router.get("/debug", (req, res) => {
     res.json({
         width,
         height,
@@ -358,8 +358,4 @@ app.get("/debug", (req, res) => {
         x,
         y
     });
-});
-
-app.listen(PORT, () => {
-    console.log("Server running on port", PORT);
 });

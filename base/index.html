@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HTTPScreen</title>
+    <title>HTTP Transmitter base</title>
     <style>
         :root {
             --bg-color: #222;
@@ -45,7 +45,7 @@
         <p>Welcome to the http transmitter web demo</p>
         <br>
         <label>Cookie: <select name="cookie" id="cookie">
-                <option value="address">address</option>
+                <option value="adress">adress</option>
                 <option value="set">set</option>
                 <option value="reset">reset</option>
                 <option value="random">random</option>
@@ -80,7 +80,7 @@
 
             console.log(`Sending request with cookie: ${cookie}, value: ${val}, password: ${password.value}`);
 
-            fetch("/send", {
+            fetch("/base/send", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"

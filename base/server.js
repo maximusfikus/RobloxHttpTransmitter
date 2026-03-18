@@ -1,17 +1,12 @@
 const express = require("express");
-const cors = require("cors");
+const router = express.Router();
 const path = require("path");
-const { debug } = require("console");
 
-const app = express();
-app.use(cors());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json({ limit: "100mb" }));
-app.use(express.urlencoded({ limit: "100mb", extended: true }));
-
-app.get("/", (req, res) => {
+router.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "index.html"));
 });
+
+module.exports = router;
 
 const PORT = 3000;
 
@@ -104,7 +99,7 @@ value
 cookie
 password
 */
-app.post("/send", (req, res) => {
+router.post("/send", (req, res) => {
     const value = req.headers["value"] || req.query.value || req.body.value;
     const cookie = req.headers["cookie"] || req.query.cookie || req.body.cookie;
     const password = req.headers["password"] || req.query.password || req.body.password;
@@ -146,7 +141,7 @@ READ DATA (FOR OUTPUT TRANSMITTER)
 ====================================
 Uses address header to select value
 */
-app.get("/read", (req, res) => {
+router.get("/read", (req, res) => {
     const password = req.headers["password"] || req.query.password;
     const addr = req.headers["address"] || req.query.address || address || "00000000"; // Use provided address or default
 
@@ -165,12 +160,6 @@ app.get("/read", (req, res) => {
 /*
 DEBUG VIEW
 */
-app.get("/debug", (req, res) => {
+router.get("/debug", (req, res) => {
     res.json(storage);
-});
-
-
-
-app.listen(PORT, () => {
-    console.log("Server running on port", PORT);
 });

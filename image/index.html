@@ -309,7 +309,7 @@
 
             const packed = packFrames(frames, width, height, compactCheckbox.checked);
 
-            fetch("/webint", {
+            fetch("/image/webint", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ packed, password: passwordInput.value, source: sourceFile })
