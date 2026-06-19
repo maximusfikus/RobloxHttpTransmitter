@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Double Dabble Full Tree (Orthogonal Routed)</title>
+  <style>
+    :root {
+      --bg: #0f1220;
+      --panel: #1b2038;
+      --wire: #444;
+      --active: #00ff88;
+      --text: #e8ecff;
+      --block: #2a2f55;
+      --dead: #222;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: monospace
+    }
+
+    .controls {
+      padding: 10px;
+      background: var(--panel)
+    }
+
+    .grid {
+      display: flex;
+      gap: 4px;
+      margin-top: 10px
+    }
+
+    .bit {
+      padding: 10px;
+      border: 1px solid #555;
+      cursor: pointer
+    }
+
+    .active {
+      background: var(--active);
+      color: black
+    }
+
+    svg {
+      width: 100%;
+      height: 750px;
+      background: #111;
+      margin-top: 10px
+    }
+
+    .block {
+      fill: var(--block);
+      stroke: #888
+    }
+
+    .dead {
+      fill: var(--dead);
+      stroke: #333
+    }
+  </style>
+</head>
+
+<body>
+  <div class="controls">
+    <label>Mode:
+      <select id="mode">
+        <option value="bin2dec">Binary → Decimal</option>
+        <option value="dec2bin">Decimal → Binary</option>
+      </select>
+    </label>
+    <label>Count:
+      <input type="number" id="count" value="8" min="1" max="12">
+    </label>
+    <button onclick="compute()">Compute</button>
+    <div id="inputs" class="grid"></div>
+  </div>
+
+  <svg id="svg"></svg>
+  <div id="output"></div>
+
+  <script>
+    const modeSel = document.getElementById('mode');
+    const countInput = document.getElementById('count');
+    const inputsDiv = document.getElementById('inputs');
+    const svg = document.getElementById('svg');
+    const outputDiv = document.getElementById('output');
+
+    let input = [];
+
+    function buildInputs() {
+      inputsDiv.innerHTML = '';
+      let n = parseInt(countInput.value);
+      input = Array(n).fill(0);
+
+      if (modeSel.value === 'bin2dec') {
+        for (let i = 0; i < n; i++) {
+          let el = document.createElement('div');
+          el.className = 'bit'; el.textContent = '0';
+          el.onclick = () => { input[i] ^= 1; el.textContent = input[i]; el.classList.toggle('active'); compute(); };
+          inputsDiv.appendChild(el);
+        }
+      } else {
+        for (let i = 0; i < n; i++) {
+          let el = document.createElement('div');
+          el.className = 'bit'; el.textContent = '0000';
+          el.onclick = () => {
+            let v = (parseInt(el.textContent, 2) + 1) % 10;
+            el.textContent = v.toString(2).padStart(4, '0');
+            input[i] = v; compute();
+          };
+          inputsDiv.appendChild(el);
+        }
+      }
+      compute();
+    }
+
+    function forward(bits) {
+      let stages = [];
+      let digits = Math.ceil(bits.length / 3);
+      let bcd = Array(digits).fill(0);
+
+      for (let s = 0; s < bits.length; s++) {
+        for (let i = 0; i < bcd.length; i++) if (bcd[i] >= 5) bcd[i] += 3;
+
+        let carry = bits[s];
+        for (let i = bcd.length - 1; i >= 0; i--) {
+          let nc = (bcd[i] & 8) >> 3;
+          bcd[i] = ((bcd[i] << 1) & 0xF) | carry;
+          carry = nc;
+        }
+        stages.push([...bcd]);
+      }
+      return stages;
+    }
+
+    function compute() {
+      let trace = forward(input);
+      let final = trace.at(-1) || [];
+      let result = parseInt(final.join('')) || 0;
+      outputDiv.textContent = `Decimal: ${result}`;
+      draw(trace);
+    }
+
+    function orthoWire(x1, y1, x2, y2, color, opacity, offset = 0) {
+      let midX = x1 + (x2 - x1) / 2 + offset;
+
+      let path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      let d = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
+      path.setAttribute('d', d);
+      path.setAttribute('stroke', color);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('opacity', opacity);
+      svg.appendChild(path);
+    }
+
+    function draw(trace) {
+      svg.innerHTML = '';
+      const dx = 100, dy = 70;
+
+      // INPUT bits as separate nodes
+      input.forEach((bit, i) => {
+        for (let b = 0; b < 1; b++) {
+          let cx = 30;
+          let cy = 100 + i * 20;
+
+          let c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          c.setAttribute('cx', cx);
+          c.setAttribute('cy', cy);
+          c.setAttribute('r', 6);
+          c.setAttribute('fill', bit ? 'var(--active)' : 'var(--wire)');
+          svg.appendChild(c);
+        }
+      });
+
+      trace.forEach((stage, x) => {
+        stage.forEach((val, y) => {
+          let bx = 140 + x * dx;
+          let by = 80 + y * dy + x * 10;
+
+          // block
+          let rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          rect.setAttribute('x', bx);
+          rect.setAttribute('y', by);
+          rect.setAttribute('width', 50);
+          rect.setAttribute('height', 50);
+          rect.setAttribute('class', val ? 'block' : 'dead');
+          svg.appendChild(rect);
+
+          // draw 4 internal bit nodes
+          for (let b = 0; b < 4; b++) {
+            let bitVal = (val >> (3 - b)) & 1;
+            let cx = bx;
+            let cy = by + 10 + b * 10;
+
+            let c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            c.setAttribute('cx', cx);
+            c.setAttribute('cy', cy);
+            c.setAttribute('r', 3);
+            c.setAttribute('fill', bitVal ? 'var(--active)' : 'var(--wire)');
+            svg.appendChild(c);
+          }
+
+          // internal routing
+          if (x > 0) {
+            for (let b = 0; b < 4; b++) {
+              let prev = trace[x - 1][y] || 0;
+              let bit = (prev >> (3 - b)) & 1;
+
+              let x1 = bx - dx + 50;
+              let y1 = (by - dy) + 10 + b * 10;
+              let x2 = bx;
+              let y2 = by + 10 + b * 10;
+
+              orthoWire(x1, y1, x2, y2,
+                bit ? 'var(--active)' : 'var(--wire)',
+                bit ? 1 : 0.3,
+                b * 3
+              );
+            }
+          }
+
+          // input wiring into first column
+          if (x === 0) {
+            let bit = input[y] || 0;
+            let x1 = 30;
+            let y1 = 100 + y * 20;
+            let x2 = bx;
+            let y2 = by + 25;
+
+            orthoWire(x1, y1, x2, y2,
+              bit ? 'var(--active)' : 'var(--wire)',
+              bit ? 1 : 0.3,
+              0
+            );
+          }
+
+          // output wiring
+          if (x === trace.length - 1) {
+            for (let b = 0; b < 4; b++) {
+              let bit = (val >> (3 - b)) & 1;
+
+              let x1 = bx + 50;
+              let y1 = by + 10 + b * 10;
+              let x2 = bx + 120;
+              let y2 = by + 10 + b * 10;
+
+              orthoWire(x1, y1, x2, y2,
+                bit ? 'var(--active)' : 'var(--wire)',
+                bit ? 1 : 0.3,
+                b * 3
+              );
+            }
+          }
+        });
+      });
+    }
+
+    modeSel.addEventListener('change', buildInputs);
+    countInput.addEventListener('input', buildInputs);
+
+    buildInputs();
+  </script>
+</body>
+
+</html>
