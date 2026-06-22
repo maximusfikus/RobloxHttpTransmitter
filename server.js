@@ -21,7 +21,7 @@ AUTO LOAD SUB-SERVERS
 
 const rootDir = __dirname;
 
-const ignoreFolders = ["node_modules", ".old1", "ignore"];
+const ignoreFolders = ["node_modules", ".old1", ".old2", "ignore"];
 const loadedModules = [];
 
 fs.readdirSync(rootDir).forEach((folder) => {
