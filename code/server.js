@@ -7,6 +7,19 @@ const router = express.Router();
 router.use(express.static(__dirname));
 router.use(express.json());
 
+app.use((req, res, next) => {
+    let rawBody = "";
+
+    req.on("data", chunk => {
+        rawBody += chunk.toString();
+    });
+
+    req.on("end", () => {
+        console.log("Raw body:", rawBody);
+        next();
+    });
+});
+
 let storage = {};
 
 /*storage organisation:
@@ -66,17 +79,6 @@ router.get("/getByte", (req, res) => {
     //res.json({value: data});
 });
 
-app.use((req, res, next) => {
-    let rawBody = "";
 
-    req.on("data", chunk => {
-        rawBody += chunk.toString();
-    });
-
-    req.on("end", () => {
-        console.log("Raw body:", rawBody);
-        next();
-    });
-});
 
 module.exports = router;
