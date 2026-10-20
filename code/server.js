@@ -7,19 +7,6 @@ const router = express.Router();
 router.use(express.static(__dirname));
 router.use(express.json());
 
-app.use((req, res, next) => {
-    let rawBody = "";
-
-    req.on("data", chunk => {
-        rawBody += chunk.toString();
-    });
-
-    req.on("end", () => {
-        console.log("Raw body:", rawBody);
-        next();
-    });
-});
-
 let storage = {};
 
 /*storage organisation:
@@ -61,7 +48,7 @@ router.post("/upload", (req, res) => {
 
 });
 
-router.get("/getByte", (req, res) => {
+/*router.get("/getByte", (req, res) => {
     const sessionId = req.headers["seshid"];
     const line = parseInt(req.headers["value"] || req.query.value || req.params.value);
     const byte = req.headers["byte"];
@@ -77,6 +64,22 @@ router.get("/getByte", (req, res) => {
     //console.log(`getByte: sessionId=${sessionId}, line=${line}, rawLine=${req.headers["value"] || req.query.value || req.params.value}, byte=${byte} => ${data}`);
 
     //res.json({value: data});
+});*/
+
+router.get("/getByte", (req, res) => {
+    console.log("URL:", req.originalUrl);
+    console.log("Method:", req.method);
+    console.log("Content-Type:", req.headers["content-type"]);
+    console.log("Content-Length:", req.headers["content-length"]);
+    console.log("Transfer-Encoding:", req.headers["transfer-encoding"]);
+    console.log("Headers:", req.headers);
+    console.log("Query:", req.query);
+    console.log("Body:", req.body);
+
+    return res.status(200).json({
+        success: true,
+        value: req.query.value ?? null
+    });
 });
 
 module.exports = router;
