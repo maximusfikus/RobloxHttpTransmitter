@@ -37,13 +37,12 @@ function getByte(sessionId, line, char) {
 
 router.post("/upload", (req, res) => {
     const data = req.body.code;
-    const sessionId = req.headers["seshID"];
+    const sessionId = req.headers["seshid"];
 
     if (!data) return res.json({ error: "No data provided" });
     if (!sessionId) return res.json({ error: "No session ID provided" });
 
     storage[sessionId] = data;
-    console.log("recieved upload, seshID: ", sessionId);
 
     return res.json({ message: "Data received successfully" });
 

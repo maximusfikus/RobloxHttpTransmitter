@@ -15,13 +15,14 @@
     const button = document.getElementById('button');
     const output = document.getElementById('output');
 
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
       const payload = Array.from({length:16},()=>Array.from({length:4},()=>String.fromCharCode(Math.random()*256|0)).join(""))
-      const data = fetch("/code/upload", {
+      const response = await fetch("/code/upload", {
         method: "POST",
         headers: {"seshID": "1234567890", "Content-Type": "application/json"},
         body: JSON.stringify({ code: payload })
       })
+      const data = await response.text();
       output.textContent = data;
       console.log(data);
     });
