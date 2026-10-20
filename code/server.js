@@ -6,6 +6,7 @@ const router = express.Router();
 
 router.use(express.static(__dirname));
 router.use(express.json());
+router.use(express.urlencoded({ extended: true }));
 
 let storage = {};
 
