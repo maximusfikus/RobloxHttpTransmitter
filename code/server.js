@@ -43,6 +43,7 @@ router.post("/upload", (req, res) => {
     if (!sessionId) return res.json({ error: "No session ID provided" });
 
     storage[sessionId] = data;
+    console.log("recieved upload, seshID: ", sessionId);
 
     return res.json({ message: "Data received successfully" });
 
