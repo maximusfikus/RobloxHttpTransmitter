@@ -53,8 +53,15 @@ router.get("/getByte", (req, res) => {
     const line = parseInt(req.headers["value"] || req.query.value || req.params.value);
     const byte = req.headers["byte"];
 
+    console.log("URL:", req.originalUrl);
+    console.log("Query:", req.query);
+    console.log("Headers:", req.headers);
+    console.log("Body:", req.body);
+
+    res.json({ value: 0 });
+
     const data = getByte(sessionId, line, byte);
-    console.log(`getByte: sessionId=${sessionId}, line=${line}, rawLine=${req.headers["value"] || req.query.value || req.params.value}, byte=${byte} => ${data}`);
+    //console.log(`getByte: sessionId=${sessionId}, line=${line}, rawLine=${req.headers["value"] || req.query.value || req.params.value}, byte=${byte} => ${data}`);
 
     res.json({value: data});
 });
