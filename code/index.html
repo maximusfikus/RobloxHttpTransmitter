@@ -41,7 +41,7 @@
       const byte = input2.value;
       const response = await fetch(`/code/getByte`, {
         method: "GET",
-        headers: {"seshID": "1234567890", "byte": byte, "line": line},
+        headers: {"seshID": "1234567890", "byte": byte, "value": line},
       })
       const data = await response.text();
       output2.textContent = data;
