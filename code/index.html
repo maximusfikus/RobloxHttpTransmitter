@@ -10,10 +10,19 @@
 <button id="button">click me</button>
 <p id="output"></p>
 
+<input type="number" id="input" placeholder="Enter a line" />
+<input type="text" id="input2" placeholder="Enter a byte" />
+<button id="button2">get stored val</button>
+<p id="output2"></p>
+
   <script src="script.js"></script>
   <script>
     const button = document.getElementById('button');
     const output = document.getElementById('output');
+    const input = document.getElementById('input');
+    const input2 = document.getElementById('input2');
+    const output2 = document.getElementById('output2');
+    const button2 = document.getElementById('button2');
 
     button.addEventListener('click', async () => {
       const payload = Array.from({length:16},()=>Array.from({length:4},()=>String.fromCharCode(Math.random()*256|0)).join(""))
@@ -24,6 +33,18 @@
       })
       const data = await response.text();
       output.textContent = data;
+      console.log(data);
+    });
+
+    button2.addEventListener('click', async () => {
+      const line = input.value.toString(2).padStart(8, '0');
+      const byte = input2.value;
+      const response = await fetch(`/code/getByte`, {
+        method: "GET",
+        headers: {"seshID": "1234567890", "byte": byte, "line": line},
+      })
+      const data = await response.text();
+      output2.textContent = data;
       console.log(data);
     });
   </script>

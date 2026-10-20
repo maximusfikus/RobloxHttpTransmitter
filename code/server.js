@@ -50,11 +50,11 @@ router.post("/upload", (req, res) => {
 
 router.get("/getByte", (req, res) => {
     const sessionId = req.headers["seshid"];
-    const line = parseInt(req.headers["value"] || req.body.value || req.query.value);
+    const line = parseInt(req.headers["value"] || req.query.value);
     const byte = req.headers["byte"];
 
     const data = getByte(sessionId, line, byte);
-    console.log(`getByte: sessionId=${sessionId}, line=${line}, rawLine=${req.headers["value"] || req.body.value || req.query.value}, byte=${byte} => ${data}`);
+    console.log(`getByte: sessionId=${sessionId}, line=${line}, rawLine=${req.headers["value"] || req.query.value}, byte=${byte} => ${data}`);
 
     res.json({value: data});
 });
