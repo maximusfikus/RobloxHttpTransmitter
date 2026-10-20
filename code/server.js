@@ -63,7 +63,20 @@ router.get("/getByte", (req, res) => {
     const data = getByte(sessionId, line, byte);
     //console.log(`getByte: sessionId=${sessionId}, line=${line}, rawLine=${req.headers["value"] || req.query.value || req.params.value}, byte=${byte} => ${data}`);
 
-    res.json({value: data});
+    //res.json({value: data});
+});
+
+app.use((req, res, next) => {
+    let rawBody = "";
+
+    req.on("data", chunk => {
+        rawBody += chunk.toString();
+    });
+
+    req.on("end", () => {
+        console.log("Raw body:", rawBody);
+        next();
+    });
 });
 
 module.exports = router;
