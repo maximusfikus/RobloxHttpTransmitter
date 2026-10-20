@@ -39,8 +39,6 @@ router.post("/upload", (req, res) => {
     const data = req.body.code;
     const sessionId = req.headers["seshID"];
 
-    console.log("Received body:", data);
-
     if (!data) return res.json({ error: "No data provided" });
     if (!sessionId) return res.json({ error: "No session ID provided" });
 
@@ -56,6 +54,7 @@ router.get("/getByte", (req, res) => {
     const byte = req.headers["byte"];
 
     const data = getByte(sessionId, line, byte);
+    console.log(`getByte: sessionId=${sessionId}, line=${line}, byte=${byte} => ${data}`);
 
     res.json({value: data});
 });
