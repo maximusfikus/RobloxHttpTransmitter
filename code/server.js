@@ -79,6 +79,4 @@ router.get("/getByte", (req, res) => {
     //res.json({value: data});
 });
 
-
-
 module.exports = router;
