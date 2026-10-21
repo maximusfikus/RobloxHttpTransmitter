@@ -112,7 +112,7 @@ async function upload() {
 async function getByte({ line, byte, useLocal, increment }) {
   const headers = { seshID: SESSION, byte: String(byte) };
   if (useLocal) headers.use_local_adress = "true";
-  else headers.line = String(line);
+  else headers.value = String(line);
   if (increment) headers.increment = "true";
   const res = await fetch("/code/getByte", { method: "POST", headers });
   return res.json();
