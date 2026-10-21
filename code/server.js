@@ -36,7 +36,8 @@ router.post("/getByte", (req, res) => {
     const sessionId = req.headers["seshid"];
     const use_local_adress = req.headers["useLocalAddress"] === "true";
     const increment = req.headers["increment"] === "true";
-    const line = use_local_adress ? adresses[sessionId] : parseInt(req.headers["value"] ?? 0x0f, 2);
+    const line = use_local_adress ? adresses[sessionId] : parseInt(req.headers["value"], 2);
+    console.log("line: ", line, " raw value: ", req.headers["value"]);
     const byte = req.headers["byte"];
 
     res.json({ value: getByte(sessionId, line, byte) });
