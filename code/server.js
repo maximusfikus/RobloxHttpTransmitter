@@ -11,22 +11,6 @@ router.use(express.urlencoded({ extended: true }));
 let storage = {};
 let adresses = {};
 
-/*storage organisation:
-{
-    "sessionId": ["An1Kl","naU3t",...]
-}
-    sessionId: unique session identifier
-    array of strings: string => line, char => byte
-*/
-
-/* mock upload endpoint for testing 
-fetch("/upload", {
-    method: "POST",
-    headers: {seshID: "sessionId"},
-    body: JSON.stringify({packed: ["An1Kl","naU3t",...]})
-})
-*/
-
 function getByte(sessionId, line, byte) {
     if (!storage[sessionId]?.[line]) {
         return "00000000";
@@ -52,7 +36,7 @@ router.post("/getByte", (req, res) => {
     const sessionId = req.headers["seshid"];
     const use_local_adress = req.headers["use_local_adress"] === "true";
     const increment = req.headers["increment"] === "true";
-    const line = use_local_adress ? adresses[sessionId] : Number(req.headers["value"] ?? 0);
+    const line = use_local_adress ? adresses[sessionId] : parseInt(req.headers["value"] ?? 0,2);
     const byte = req.headers["byte"];
 
     res.json({ value: getByte(sessionId, line, byte) });
@@ -62,19 +46,16 @@ router.post("/getByte", (req, res) => {
 
 router.post("/setAddress", (req, res) => {
     const sessionId = req.headers["seshid"];
-    const address = Number(req.headers["byte"] ?? 0);
-    const value = Number( req.headers["value"] ?? req.query.value ?? req.body?.value );
+    const byte = Number(req.headers["byte"] ?? 0);
+    const value = parseInt( req.headers["value"] ?? req.query.value ?? req.body?.value , 2);
 
     if (!sessionId || !storage[sessionId]) {
         return res.status(400).json({ error: "Invalid or missing session" });
     }
-    if (!Number.isInteger(address) || address < 0 || address >= storage[sessionId].length) {
-        return res.status(400).json({ error: "Invalid address" });
-    }
 
-    adresses[sessionId] = address;
+    adresses[sessionId] = value;
 
-    return res.json({ value: storage[sessionId][address][0].toString(2).padStart(8, "0") ?? 0 });
+    return res.json({ value: storage[sessionId][value][0].toString(2).padStart(8, "0") ?? 0 });
 });
 
 router.get("/getAddress", (req, res) => {

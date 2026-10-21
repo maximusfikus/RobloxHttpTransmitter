@@ -112,7 +112,7 @@ async function upload() {
 async function getByte({ line, byte, useLocal, increment }) {
   const headers = { seshID: SESSION, byte: String(byte) };
   if (useLocal) headers.use_local_adress = "true";
-  else headers.value = String(line);
+  else headers.value = line.toString(2).padStart(8, "0");
   if (increment) headers.increment = "true";
   const res = await fetch("/code/getByte", { method: "POST", headers });
   return res.json();
@@ -122,7 +122,7 @@ async function getByte({ line, byte, useLocal, increment }) {
 async function setAddress(address) {
   const res = await fetch("/code/setAddress", {
     method: "POST",
-    headers: { seshID: SESSION, byte: String(address) },
+    headers: { seshID: SESSION, byte: String(address), "value": address.toString(2).padStart(8, "0") },
   });
   return res.json();
 }
