@@ -34,9 +34,9 @@ router.post("/upload", (req, res) => {
 
 router.post("/getByte", (req, res) => {
     const sessionId = req.headers["seshid"];
-    const use_local_adress = req.headers["use_local_adress"] === "true";
+    const use_local_adress = req.headers["useLocalAddress"] === "true";
     const increment = req.headers["increment"] === "true";
-    const line = use_local_adress ? adresses[sessionId] : parseInt(req.headers["value"] ?? 0,2);
+    const line = use_local_adress ? adresses[sessionId] : parseInt(req.headers["value"] ?? 0x0f, 2);
     const byte = req.headers["byte"];
 
     res.json({ value: getByte(sessionId, line, byte) });
