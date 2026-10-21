@@ -3,50 +3,331 @@
 <head>
   <meta charset="UTF-8" />
   <title>Machine Code IDE</title>
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { font-family: monospace; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
+    button { padding: 0.4rem 0.8rem; cursor: pointer; }
+    input { width: 80px; padding: 0.3rem; }
+    .out { background: #eee; padding: 0.5rem; min-height: 1.4rem; margin: 0.5rem 0; }
+    fieldset { margin: 1rem 0; }
+    #storageView {
+      background: #111;
+      color: #b8ffb8;
+      padding: 0.6rem;
+      font-size: 0.8rem;
+      white-space: pre;
+      overflow-x: auto;
+      line-height: 1.4;
+      min-height: 4rem;
+    }
+    #storageView .line-num { color: #888; }
+    #storageView .bin { color: #8ecaff; }
+    #storageView .dec { color: #ffcf7a; }
+    #storageView .ascii { color: #b8ffb8; }
+    #storageView .summary { color: #ff8ec8; }
+  </style>
 </head>
 <body>
 
-<button id="button">click me</button>
-<p id="output"></p>
+<fieldset>
+  <legend>upload</legend>
+  <button id="uploadBtn">upload random code</button>
+  <div class="out" id="uploadOut">-</div>
+</fieldset>
 
-<input type="number" id="input" placeholder="Enter a line" />
-<input type="text" id="input2" placeholder="Enter a byte" />
-<button id="button2">get stored val</button>
-<p id="output2"></p>
+<fieldset>
+  <legend>getByte</legend>
+  <label>line: <input type="number" id="line" value="0" min="0" max="15"></label>
+  <label>byte: <input type="number" id="byte" value="0" min="0" max="3"></label>
+  <label><input type="checkbox" id="useLocal"> use local address</label>
+  <button id="getBtn">get</button>
+  <div class="out" id="getOut">-</div>
+</fieldset>
 
-  <script src="script.js"></script>
-  <script>
-    const button = document.getElementById('button');
-    const output = document.getElementById('output');
-    const input = document.getElementById('input');
-    const input2 = document.getElementById('input2');
-    const output2 = document.getElementById('output2');
-    const button2 = document.getElementById('button2');
+<fieldset>
+  <legend>setAddress</legend>
+  <label>address: <input type="number" id="addr" value="0" min="0" max="15"></label>
+  <button id="setBtn">set</button>
+  <div class="out" id="setOut">-</div>
+</fieldset>
 
-    button.addEventListener('click', async () => {
-      const payload = Array.from({length:16},()=>Array.from({length:4},()=>String.fromCharCode(Math.random()*256|0)).join(""))
-      const response = await fetch("/code/upload", {
-        method: "POST",
-        headers: {"seshID": "1234567890", "Content-Type": "application/json"},
-        body: JSON.stringify({ code: payload })
-      })
-      const data = await response.text();
-      output.textContent = data;
-      console.log(data);
-    });
+<fieldset>
+  <legend>getAddress</legend>
+  <button id="getAddrBtn">get current address</button>
+  <span style="margin-left:1rem">decoded: <b id="addrDecoded">-</b></span>
+  <div class="out" id="getAddrOut">-</div>
+</fieldset>
 
-    button2.addEventListener('click', async () => {
-      const line = input.value.toString(2).padStart(8, '0');
-      const byte = input2.value;
-      const response = await fetch(`/code/getByte`, {
-        method: "GET",
-        headers: {"seshID": "1234567890", "byte": byte, "value": line},
-      })
-      const data = await response.text();
-      output2.textContent = data;
-      console.log(data);
-    });
-  </script>
+<fieldset>
+  <legend>increment</legend>
+  <label>line: <input type="number" id="incrLine" value="0" min="0" max="15"></label>
+  <label>byte: <input type="number" id="incrByte" value="0" min="0" max="3"></label>
+  <button id="incrBtn">read + increment</button>
+  <div class="out" id="incrOut">-</div>
+  <div style="font-size:0.85rem;color:#666">
+    Calls <code>getByte</code> with <code>use_local_adress=true</code> + <code>increment=true</code>,
+    then reads <code>getAddress</code> again to confirm it advanced.
+  </div>
+</fieldset>
+
+<fieldset>
+  <legend>test flow</legend>
+  <button id="flowBtn">run full flow (setAddress → incr → getAddress)</button>
+  <div class="out" id="flowOut">-</div>
+</fieldset>
+
+<fieldset>
+  <legend>storage view <button id="refreshBtn" style="float:right">refresh</button></legend>
+  <div id="storageView">-</div>
+</fieldset>
+
+<script>
+const SESSION = "1234567890";
+const LINES = 16;
+const BYTES = 4;
+
+const uploadOut = document.getElementById("uploadOut");
+const getOut    = document.getElementById("getOut");
+const setOut    = document.getElementById("setOut");
+const getAddrOut = document.getElementById("getAddrOut");
+const addrDecoded = document.getElementById("addrDecoded");
+const incrOut   = document.getElementById("incrOut");
+const flowOut   = document.getElementById("flowOut");
+const storageView = document.getElementById("storageView");
+
+// ---- upload: payload is [[b0,b1,b2,b3], ...] with numbers 0-255 ----
+async function upload() {
+  const payload = Array.from({ length: LINES }, () =>
+    Array.from({ length: BYTES }, () =>
+      Math.floor(Math.random() * 256))
+  );
+  const res = await fetch("/code/upload", {
+    method: "POST",
+    headers: { "seshID": SESSION, "Content-Type": "application/json" },
+    body: JSON.stringify({ code: payload }),
+  });
+  return res.json();
+}
+
+// ---- getByte ----
+async function getByte({ line, byte, useLocal, increment }) {
+  const headers = { seshID: SESSION, byte: String(byte) };
+  if (useLocal) headers.use_local_adress = "true";
+  else headers.line = String(line);
+  if (increment) headers.increment = "true";
+  const res = await fetch("/code/getByte", { method: "POST", headers });
+  return res.json();
+}
+
+// ---- setAddress ----
+async function setAddress(address) {
+  const res = await fetch("/code/setAddress", {
+    method: "POST",
+    headers: { seshID: SESSION, byte: String(address) },
+  });
+  return res.json();
+}
+
+// ---- getAddress ----
+// Backend returns the address as a binary string (e.g. "00000010" for 2).
+// Some backends may return just a raw number; handle both.
+async function getAddress() {
+  const res = await fetch("/code/getAddress", {
+    method: "GET",
+    headers: { seshID: SESSION },
+  });
+  return res.json();
+}
+
+// Decode whatever the backend returned into a number.
+// Accepts: binary string ("00000010"), decimal string ("2"), or number (2).
+function decodeAddress(value) {
+  if (typeof value === "number") return value;
+  if (typeof value === "string" && /^[01]+$/.test(value) && value.length > 1) {
+    return parseInt(value, 2);
+  }
+  return Number(value);
+}
+
+// ---- dump whole storage via getByte ----
+async function dumpStorage() {
+  const rows = [];
+  for (let line = 0; line < LINES; line++) {
+    const row = [];
+    for (let b = 0; b < BYTES; b++) {
+      const r = await getByte({ line, byte: b, useLocal: false });
+      row.push(r.value);
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
+// ---- render the storage ----
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function renderStorage(rows) {
+  let html = "";
+  let anyNonZero = false;
+
+  for (let line = 0; line < rows.length; line++) {
+    const bin = rows[line];
+    const decs = bin.map(b => parseInt(b, 2));
+    const chars = decs.map(d => (d >= 32 && d <= 126) ? String.fromCharCode(d) : "·").join("");
+
+    // 3-digit padded decimal for column alignment
+    const cells = bin.map((b, i) =>
+      `<span class="bin">${b}</span> <span class="dec">(${String(decs[i]).padStart(3, " ")})</span>`
+    ).join("  ");
+
+    const big = bin.reduce((acc, b) => (acc * 256n) + BigInt(parseInt(b, 2)), 0n);
+    const bigHex = "0x" + big.toString(16).padStart(8, "0");
+
+    if (decs.some(d => d !== 0)) anyNonZero = true;
+
+    html +=
+      `<span class="line-num">[${String(line).padStart(2, " ")}]</span> ` +
+      cells +
+      `   <span class="ascii">'${escapeHtml(chars)}'</span>  ` +
+      `<span class="summary">line=${String(big).padStart(10, " ")} ${bigHex}</span>\n`;
+  }
+
+  if (!anyNonZero) {
+    html = "⚠️ no data yet — click 'upload random code' first.\n\n" + html;
+  }
+  storageView.innerHTML = html;
+}
+
+async function refreshStorage() {
+  storageView.textContent = "loading…";
+  try {
+    const rows = await dumpStorage();
+    renderStorage(rows);
+  } catch (e) {
+    storageView.textContent = "error: " + e.message;
+  }
+}
+
+// ---- button wiring ----
+document.getElementById("uploadBtn").addEventListener("click", async () => {
+  try {
+    uploadOut.textContent = JSON.stringify(await upload());
+    await refreshStorage();
+  } catch (e) { uploadOut.textContent = "err: " + e.message; }
+});
+
+document.getElementById("getBtn").addEventListener("click", async () => {
+  const line = Number(document.getElementById("line").value);
+  const byte = Number(document.getElementById("byte").value);
+  const useLocal = document.getElementById("useLocal").checked;
+  try {
+    getOut.textContent = JSON.stringify(await getByte({ line, byte, useLocal }));
+  } catch (e) { getOut.textContent = "err: " + e.message; }
+});
+
+document.getElementById("setBtn").addEventListener("click", async () => {
+  const addr = Number(document.getElementById("addr").value);
+  try {
+    setOut.textContent = JSON.stringify(await setAddress(addr));
+  } catch (e) { setOut.textContent = "err: " + e.message; }
+});
+
+document.getElementById("getAddrBtn").addEventListener("click", async () => {
+  try {
+    const raw = await getAddress();
+    const n = decodeAddress(raw.value);
+    getAddrOut.textContent = JSON.stringify(raw);
+    addrDecoded.textContent = String(n) + " (" + n.toString(2).padStart(8, "0") + "b)";
+  } catch (e) { getAddrOut.textContent = "err: " + e.message; addrDecoded.textContent = "-"; }
+});
+
+// ---- increment test: read via local address with increment=true, then check getAddress ----
+document.getElementById("incrBtn").addEventListener("click", async () => {
+  const byte = Number(document.getElementById("incrByte").value);
+  const log = [];
+  try {
+    const before = await getAddress();
+    const beforeN = decodeAddress(before.value);
+    log.push("getAddress before → " + JSON.stringify(before) + "  (decoded: " + beforeN + ")");
+
+    const read = await getByte({ byte, useLocal: true, increment: true });
+    log.push("getByte(useLocal, byte=" + byte + ", increment) → " + JSON.stringify(read));
+
+    const after = await getAddress();
+    const afterN = decodeAddress(after.value);
+    log.push("getAddress after  → " + JSON.stringify(after) + "  (decoded: " + afterN + ")");
+
+    const expected = (beforeN + 1) % LINES;
+    log.push(afterN === expected
+      ? "✅ address incremented " + beforeN + " → " + afterN
+      : "❌ expected " + expected + ", got " + afterN);
+
+    incrOut.textContent = log.join("\n");
+    incrOut.style.whiteSpace = "pre-wrap";
+  } catch (e) {
+    incrOut.textContent = "err: " + e.message + "\n" + log.join("\n");
+    incrOut.style.whiteSpace = "pre-wrap";
+  }
+});
+
+// ---- full flow ----
+document.getElementById("flowBtn").addEventListener("click", async () => {
+  const log = [];
+  try {
+    log.push("upload → " + JSON.stringify(await upload()));
+
+    log.push("setAddress(2) → " + JSON.stringify(await setAddress(2)));
+    let a = await getAddress();
+    log.push("getAddress → " + JSON.stringify(a) + "  (decoded: " + decodeAddress(a.value) + ")");
+
+    let r = await getByte({ byte: 0, useLocal: true });
+    log.push("getByte(useLocal, byte=0) → " + JSON.stringify(r) + "  [expect line 2]");
+
+    r = await getByte({ byte: 1, useLocal: true, increment: true });
+    log.push("getByte(useLocal, byte=1, incr) → " + JSON.stringify(r) + "  [line 2, then addr→3]");
+
+    a = await getAddress();
+    const decoded = decodeAddress(a.value);
+    log.push("getAddress → " + JSON.stringify(a) + "  (decoded: " + decoded + ")");
+    log.push(decoded === 3 ? "✅ address is now 3" : "❌ expected 3, got " + decoded);
+
+    r = await getByte({ byte: 0, useLocal: true });
+    log.push("getByte(useLocal, byte=0) → " + JSON.stringify(r) + "  [expect line 3]");
+
+    const r2 = await getByte({ line: 2, byte: 0, useLocal: false });
+    const r3 = await getByte({ line: 3, byte: 0, useLocal: false });
+    log.push("explicit line 2 byte 0 → " + JSON.stringify(r2));
+    log.push("explicit line 3 byte 0 → " + JSON.stringify(r3));
+
+    // wrap-around test: setAddress(15), increment → 0
+    await setAddress(15);
+    await getByte({ byte: 0, useLocal: true, increment: true });
+    const wrapped = decodeAddress((await getAddress()).value);
+    log.push("wrap test: setAddress(15), increment → getAddress = " + wrapped);
+    log.push(wrapped === 0 ? "✅ wrapped to 0" : "❌ expected 0, got " + wrapped);
+
+    flowOut.textContent = log.join("\n");
+    flowOut.style.whiteSpace = "pre-wrap";
+    await refreshStorage();
+  } catch (e) {
+    flowOut.textContent = "err: " + e.message + "\n" + log.join("\n");
+    flowOut.style.whiteSpace = "pre-wrap";
+  }
+});
+
+document.getElementById("refreshBtn").addEventListener("click", refreshStorage);
+
+// ---- initial load ----
+(async () => {
+  try {
+    const check = await getByte({ line: 0, byte: 0, useLocal: false });
+    if (check.value === "00000000") {
+      await upload();
+    }
+  } catch (_) { /* ignore */ }
+  await refreshStorage();
+})();
+</script>
 </body>
 </html>

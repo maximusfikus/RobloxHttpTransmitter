@@ -9,6 +9,7 @@ router.use(express.json());
 router.use(express.urlencoded({ extended: true }));
 
 let storage = {};
+let adresses = {};
 
 /*storage organisation:
 {
@@ -26,14 +27,12 @@ fetch("/upload", {
 })
 */
 
-function getByte(sessionId, line, char) {
-    if (!storage[sessionId]) {
-        return 0;
+function getByte(sessionId, line, byte) {
+    if (!storage[sessionId]?.[line]) {
+        return "00000000";
     }
 
-    const byte = (storage[sessionId][line] ? storage[sessionId][line].charCodeAt(char) : 0).toString(2).padStart(8, "0");
-
-    return byte
+    return storage[sessionId][line][byte].toString(2).padStart(8, "0");
 }
 
 router.post("/upload", (req, res) => {
@@ -49,38 +48,43 @@ router.post("/upload", (req, res) => {
 
 });
 
-/*router.get("/getByte", (req, res) => {
+router.post("/getByte", (req, res) => {
     const sessionId = req.headers["seshid"];
-    const line = parseInt(req.headers["value"] || req.query.value || req.params.value);
+    const use_local_adress = req.headers["use_local_adress"] === "true";
+    const increment = req.headers["increment"] === "true";
+    const line = use_local_adress ? adresses[sessionId] : Number(req.headers["line"] ?? 0);
     const byte = req.headers["byte"];
 
-    console.log("URL:", req.originalUrl);
-    console.log("Query:", req.query);
-    console.log("Headers:", req.headers);
-    console.log("Body:", req.body);
+    res.json({ value: getByte(sessionId, line, byte) });
 
-    res.json({ value: 0 });
+    increment ? adresses[sessionId] = (adresses[sessionId] + 1) % storage[sessionId].length : null;
+});
 
-    const data = getByte(sessionId, line, byte);
-    //console.log(`getByte: sessionId=${sessionId}, line=${line}, rawLine=${req.headers["value"] || req.query.value || req.params.value}, byte=${byte} => ${data}`);
+router.post("/setAddress", (req, res) => {
+    const sessionId = req.headers["seshid"];
+    const address = Number(req.headers["byte"] ?? 0);
+    const value = Number( req.headers["value"] ?? req.query.value ?? req.body?.value );
 
-    //res.json({value: data});
-});*/
+    if (!sessionId || !storage[sessionId]) {
+        return res.status(400).json({ error: "Invalid or missing session" });
+    }
+    if (!Number.isInteger(address) || address < 0 || address >= storage[sessionId].length) {
+        return res.status(400).json({ error: "Invalid address" });
+    }
 
-router.get("/getByte", (req, res) => {
-    console.log("URL:", req.originalUrl);
-    console.log("Method:", req.method);
-    console.log("Content-Type:", req.headers["content-type"]);
-    console.log("Content-Length:", req.headers["content-length"]);
-    console.log("Transfer-Encoding:", req.headers["transfer-encoding"]);
-    console.log("Headers:", req.headers);
-    console.log("Query:", req.query);
-    console.log("Body:", req.body);
+    adresses[sessionId] = address;
 
-    return res.status(200).json({
-        success: true,
-        value: req.query.value ?? null
-    });
+    return res.json({ value: storage[sessionId][address][0].toString(2).padStart(8, "0") ?? 0 });
+});
+
+router.get("/getAddress", (req, res) => {
+    const sessionId = req.headers["seshid"];
+
+    if (!sessionId || !storage[sessionId]) {
+        return res.status(400).json({ error: "Invalid or missing session" });
+    }
+
+    return res.json({ value: adresses[sessionId].toString(2).padStart(8, "0") ?? 0 });
 });
 
 module.exports = router;
