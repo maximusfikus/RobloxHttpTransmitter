@@ -31,12 +31,19 @@ router.post("/upload", (req, res) => {
 
 });
 
+router.get("/getData", (req, res) => {
+    const sessionId = req.headers["seshid"];
+
+    if (!sessionId) return res.json({ error: "No session ID provided" });
+    
+    res.json({ data: storage[sessionId] || [] });
+});
+
 router.post("/getByte", (req, res) => {
     const sessionId = req.headers["seshid"];
     const use_local_adress = req.headers["useLocalAddress"] === "true";
     const increment = req.headers["increment"] === "true";
     const line = use_local_adress ? adresses[sessionId] : parseInt(req.headers["value"] || req.body.value || req.query.value, 2);
-    console.log("line: ", line, " raw value: ", req.headers["value"]);
     const byte = req.headers["byte"];
 
     res.json({ value: getByte(sessionId, line, byte) });
@@ -55,7 +62,7 @@ router.post("/setAddress", (req, res) => {
 
     adresses[sessionId] = value;
 
-    return res.json({ value: storage[sessionId][value][0].toString(2).padStart(8, "0") ?? 0 });
+    return res.json({ value: storage[sessionId][value][byte].toString(2).padStart(8, "0") ?? 0 });
 });
 
 router.get("/getAddress", (req, res) => {

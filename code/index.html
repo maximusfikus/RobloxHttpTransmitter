@@ -2,332 +2,91 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Machine Code IDE</title>
-  <style>
-    body { font-family: monospace; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
-    button { padding: 0.4rem 0.8rem; cursor: pointer; }
-    input { width: 80px; padding: 0.3rem; }
-    .out { background: #eee; padding: 0.5rem; min-height: 1.4rem; margin: 0.5rem 0; }
-    fieldset { margin: 1rem 0; }
-    #storageView {
-      background: #111;
-      color: #b8ffb8;
-      padding: 0.6rem;
-      font-size: 0.8rem;
-      white-space: pre;
-      overflow-x: auto;
-      line-height: 1.4;
-      min-height: 4rem;
-    }
-    #storageView .line-num { color: #888; }
-    #storageView .bin { color: #8ecaff; }
-    #storageView .dec { color: #ffcf7a; }
-    #storageView .ascii { color: #b8ffb8; }
-    #storageView .summary { color: #ff8ec8; }
-  </style>
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <header>
+    <h1>Machine Code IDE</h1>
+    <div class="session-bar">
+      <label>Session ID:
+        <input id="sessionId" value="1234567890" spellcheck="false" />
+      </label>
+      <span id="sessionStatus" class="status"></span>
+    </div>
+  </header>
 
-<fieldset>
-  <legend>upload</legend>
-  <button id="uploadBtn">upload random code</button>
-  <div class="out" id="uploadOut">-</div>
-</fieldset>
+  <main>
+    <!-- ================= REGISTRY ================= -->
+    <section id="registry-panel" class="panel">
+      <h2>Registry Editor</h2>
 
-<fieldset>
-  <legend>getByte</legend>
-  <label>line: <input type="number" id="line" value="0" min="0" max="15"></label>
-  <label>byte: <input type="number" id="byte" value="0" min="0" max="3"></label>
-  <label><input type="checkbox" id="useLocal"> use local address</label>
-  <button id="getBtn">get</button>
-  <div class="out" id="getOut">-</div>
-</fieldset>
+      <div class="toolbar">
+        <span>Format:</span>
+        <button data-format="bin" class="active">Binary</button>
+        <button data-format="dec">Decimal</button>
+        <button data-format="hex">Hex</button>
+        <span class="spacer"></span>
+        <button id="registryLoad">Load from session</button>
+        <button id="registryUpload" class="primary">Upload to session</button>
+      </div>
 
-<fieldset>
-  <legend>setAddress</legend>
-  <label>address: <input type="number" id="addr" value="0" min="0" max="15"></label>
-  <button id="setBtn">set</button>
-  <div class="out" id="setOut">-</div>
-</fieldset>
+      <div class="translator">
+        <span>Translator:</span>
+        <label>Bin <input id="transBin" maxlength="8" spellcheck="false" /></label>
+        <label>Dec <input id="transDec" maxlength="3" spellcheck="false" /></label>
+        <label>Hex <input id="transHex" maxlength="2" spellcheck="false" /></label>
+      </div>
 
-<fieldset>
-  <legend>getAddress</legend>
-  <button id="getAddrBtn">get current address</button>
-  <span style="margin-left:1rem">decoded: <b id="addrDecoded">-</b></span>
-  <div class="out" id="getAddrOut">-</div>
-</fieldset>
+      <div class="grid-config">
+        <label>Rows: <input id="gridRows" type="number" value="16" min="1" max="64" /></label>
+        <label>Cols: <input id="gridCols" type="number" value="4" min="1" max="16" /></label>
+        <button id="gridResize">Resize</button>
+      </div>
 
-<fieldset>
-  <legend>increment</legend>
-  <label>line: <input type="number" id="incrLine" value="0" min="0" max="15"></label>
-  <label>byte: <input type="number" id="incrByte" value="0" min="0" max="3"></label>
-  <button id="incrBtn">read + increment</button>
-  <div class="out" id="incrOut">-</div>
-  <div style="font-size:0.85rem;color:#666">
-    Calls <code>getByte</code> with <code>use_local_adress=true</code> + <code>increment=true</code>,
-    then reads <code>getAddress</code> again to confirm it advanced.
-  </div>
-</fieldset>
+      <div id="registryGrid"></div>
+      <div id="registryStatus" class="status"></div>
+    </section>
 
-<fieldset>
-  <legend>test flow</legend>
-  <button id="flowBtn">run full flow (setAddress → incr → getAddress)</button>
-  <div class="out" id="flowOut">-</div>
-</fieldset>
+    <!-- ================= IDE ================= -->
+    <section id="ide-panel" class="panel">
+      <h2>IDE</h2>
 
-<fieldset>
-  <legend>storage view <button id="refreshBtn" style="float:right">refresh</button></legend>
-  <div id="storageView">-</div>
-</fieldset>
+      <div class="dictionary">
+        <h3>Dictionary</h3>
+        <p class="hint">
+          Maps a token to one or more bytes. Byte list accepts decimal, <code>#hex</code>,
+          or <code>0x</code>binary, comma or space separated.
+        </p>
+        <div id="dictRows"></div>
+        <button id="dictAdd">+ Add entry</button>
+      </div>
 
-<script>
-const SESSION = "1234567890";
-const LINES = 16;
-const BYTES = 4;
+      <div class="editor">
+        <h3>Editor</h3>
+        <p class="hint">
+          Rules: plain number = decimal byte · <code>#FF</code> = hex byte ·
+          <code>0x01010101</code> = 8-bit binary byte · or any dictionary token.
+          Whitespace and commas separate tokens. Newlines = lines.
+        </p>
+        <textarea id="ideEditor" spellcheck="false" placeholder="Example:
 
-const uploadOut = document.getElementById("uploadOut");
-const getOut    = document.getElementById("getOut");
-const setOut    = document.getElementById("setOut");
-const getAddrOut = document.getElementById("getAddrOut");
-const addrDecoded = document.getElementById("addrDecoded");
-const incrOut   = document.getElementById("incrOut");
-const flowOut   = document.getElementById("flowOut");
-const storageView = document.getElementById("storageView");
+A B space
+mov 1, #0A
+0x00001010"></textarea>
+      </div>
 
-// ---- upload: payload is [[b0,b1,b2,b3], ...] with numbers 0-255 ----
-async function upload() {
-  const payload = Array.from({ length: LINES }, () =>
-    Array.from({ length: BYTES }, () =>
-      Math.floor(Math.random() * 256))
-  );
-  const res = await fetch("/code/upload", {
-    method: "POST",
-    headers: { "seshID": SESSION, "Content-Type": "application/json" },
-    body: JSON.stringify({ code: payload }),
-  });
-  return res.json();
-}
+      <div class="toolbar">
+        <button id="ideCompile">Compile &amp; Preview</button>
+        <button id="ideUpload" class="primary" disabled>Upload to session</button>
+      </div>
 
-// ---- getByte ----
-async function getByte({ line, byte, useLocal, increment }) {
-  const headers = { seshID: SESSION, byte: String(byte) };
-  if (useLocal) headers.useLocalAddress = "true";
-  else headers.value = line.toString(2).padStart(8, "0");
-  if (increment) headers.increment = "true";
-  const res = await fetch("/code/getByte", { method: "POST", headers });
-  return res.json();
-}
+      <div id="idePreview"></div>
+      <div id="ideStatus" class="status"></div>
+    </section>
+  </main>
 
-// ---- setAddress ----
-async function setAddress(address) {
-  const res = await fetch("/code/setAddress", {
-    method: "POST",
-    headers: { seshID: SESSION, byte: String(address), "value": address.toString(2).padStart(8, "0") },
-  });
-  return res.json();
-}
-
-// ---- getAddress ----
-// Backend returns the address as a binary string (e.g. "00000010" for 2).
-// Some backends may return just a raw number; handle both.
-async function getAddress() {
-  const res = await fetch("/code/getAddress", {
-    method: "GET",
-    headers: { seshID: SESSION },
-  });
-  return res.json();
-}
-
-// Decode whatever the backend returned into a number.
-// Accepts: binary string ("00000010"), decimal string ("2"), or number (2).
-function decodeAddress(value) {
-  if (typeof value === "number") return value;
-  if (typeof value === "string" && /^[01]+$/.test(value) && value.length > 1) {
-    return parseInt(value, 2);
-  }
-  return Number(value);
-}
-
-// ---- dump whole storage via getByte ----
-async function dumpStorage() {
-  const rows = [];
-  for (let line = 0; line < LINES; line++) {
-    const row = [];
-    for (let b = 0; b < BYTES; b++) {
-      const r = await getByte({ line, byte: b, useLocal: false });
-      row.push(r.value);
-    }
-    rows.push(row);
-  }
-  return rows;
-}
-
-// ---- render the storage ----
-function escapeHtml(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function renderStorage(rows) {
-  let html = "";
-  let anyNonZero = false;
-
-  for (let line = 0; line < rows.length; line++) {
-    const bin = rows[line];
-    const decs = bin.map(b => parseInt(b, 2));
-    const chars = decs.map(d => (d >= 32 && d <= 126) ? String.fromCharCode(d) : "·").join("");
-
-    // 3-digit padded decimal for column alignment
-    const cells = bin.map((b, i) =>
-      `<span class="bin">${b}</span> <span class="dec">(${String(decs[i]).padStart(3, " ")})</span>`
-    ).join("  ");
-
-    const big = bin.reduce((acc, b) => (acc * 256n) + BigInt(parseInt(b, 2)), 0n);
-    const bigHex = "0x" + big.toString(16).padStart(8, "0");
-
-    if (decs.some(d => d !== 0)) anyNonZero = true;
-
-    html +=
-      `<span class="line-num">[${String(line).padStart(2, " ")}]</span> ` +
-      cells +
-      `   <span class="ascii">'${escapeHtml(chars)}'</span>  ` +
-      `<span class="summary">line=${String(big).padStart(10, " ")} ${bigHex}</span>\n`;
-  }
-
-  if (!anyNonZero) {
-    html = "⚠️ no data yet — click 'upload random code' first.\n\n" + html;
-  }
-  storageView.innerHTML = html;
-}
-
-async function refreshStorage() {
-  storageView.textContent = "loading…";
-  try {
-    const rows = await dumpStorage();
-    renderStorage(rows);
-  } catch (e) {
-    storageView.textContent = "error: " + e.message;
-  }
-}
-
-// ---- button wiring ----
-document.getElementById("uploadBtn").addEventListener("click", async () => {
-  try {
-    uploadOut.textContent = JSON.stringify(await upload());
-    await refreshStorage();
-  } catch (e) { uploadOut.textContent = "err: " + e.message; }
-});
-
-document.getElementById("getBtn").addEventListener("click", async () => {
-  const line = Number(document.getElementById("line").value);
-  const byte = Number(document.getElementById("byte").value);
-  const useLocal = document.getElementById("useLocal").checked;
-  try {
-    getOut.textContent = JSON.stringify(await getByte({ line, byte, useLocal }));
-  } catch (e) { getOut.textContent = "err: " + e.message; }
-});
-
-document.getElementById("setBtn").addEventListener("click", async () => {
-  const addr = Number(document.getElementById("addr").value);
-  try {
-    setOut.textContent = JSON.stringify(await setAddress(addr));
-  } catch (e) { setOut.textContent = "err: " + e.message; }
-});
-
-document.getElementById("getAddrBtn").addEventListener("click", async () => {
-  try {
-    const raw = await getAddress();
-    const n = decodeAddress(raw.value);
-    getAddrOut.textContent = JSON.stringify(raw);
-    addrDecoded.textContent = String(n) + " (" + n.toString(2).padStart(8, "0") + "b)";
-  } catch (e) { getAddrOut.textContent = "err: " + e.message; addrDecoded.textContent = "-"; }
-});
-
-// ---- increment test: read via local address with increment=true, then check getAddress ----
-document.getElementById("incrBtn").addEventListener("click", async () => {
-  const byte = Number(document.getElementById("incrByte").value);
-  const log = [];
-  try {
-    const before = await getAddress();
-    const beforeN = decodeAddress(before.value);
-    log.push("getAddress before → " + JSON.stringify(before) + "  (decoded: " + beforeN + ")");
-
-    const read = await getByte({ byte, useLocal: true, increment: true });
-    log.push("getByte(useLocal, byte=" + byte + ", increment) → " + JSON.stringify(read));
-
-    const after = await getAddress();
-    const afterN = decodeAddress(after.value);
-    log.push("getAddress after  → " + JSON.stringify(after) + "  (decoded: " + afterN + ")");
-
-    const expected = (beforeN + 1) % LINES;
-    log.push(afterN === expected
-      ? "✅ address incremented " + beforeN + " → " + afterN
-      : "❌ expected " + expected + ", got " + afterN);
-
-    incrOut.textContent = log.join("\n");
-    incrOut.style.whiteSpace = "pre-wrap";
-  } catch (e) {
-    incrOut.textContent = "err: " + e.message + "\n" + log.join("\n");
-    incrOut.style.whiteSpace = "pre-wrap";
-  }
-});
-
-// ---- full flow ----
-document.getElementById("flowBtn").addEventListener("click", async () => {
-  const log = [];
-  try {
-    log.push("upload → " + JSON.stringify(await upload()));
-
-    log.push("setAddress(2) → " + JSON.stringify(await setAddress(2)));
-    let a = await getAddress();
-    log.push("getAddress → " + JSON.stringify(a) + "  (decoded: " + decodeAddress(a.value) + ")");
-
-    let r = await getByte({ byte: 0, useLocal: true });
-    log.push("getByte(useLocal, byte=0) → " + JSON.stringify(r) + "  [expect line 2]");
-
-    r = await getByte({ byte: 1, useLocal: true, increment: true });
-    log.push("getByte(useLocal, byte=1, incr) → " + JSON.stringify(r) + "  [line 2, then addr→3]");
-
-    a = await getAddress();
-    const decoded = decodeAddress(a.value);
-    log.push("getAddress → " + JSON.stringify(a) + "  (decoded: " + decoded + ")");
-    log.push(decoded === 3 ? "✅ address is now 3" : "❌ expected 3, got " + decoded);
-
-    r = await getByte({ byte: 0, useLocal: true });
-    log.push("getByte(useLocal, byte=0) → " + JSON.stringify(r) + "  [expect line 3]");
-
-    const r2 = await getByte({ line: 2, byte: 0, useLocal: false });
-    const r3 = await getByte({ line: 3, byte: 0, useLocal: false });
-    log.push("explicit line 2 byte 0 → " + JSON.stringify(r2));
-    log.push("explicit line 3 byte 0 → " + JSON.stringify(r3));
-
-    // wrap-around test: setAddress(15), increment → 0
-    await setAddress(15);
-    await getByte({ byte: 0, useLocal: true, increment: true });
-    const wrapped = decodeAddress((await getAddress()).value);
-    log.push("wrap test: setAddress(15), increment → getAddress = " + wrapped);
-    log.push(wrapped === 0 ? "✅ wrapped to 0" : "❌ expected 0, got " + wrapped);
-
-    flowOut.textContent = log.join("\n");
-    flowOut.style.whiteSpace = "pre-wrap";
-    await refreshStorage();
-  } catch (e) {
-    flowOut.textContent = "err: " + e.message + "\n" + log.join("\n");
-    flowOut.style.whiteSpace = "pre-wrap";
-  }
-});
-
-document.getElementById("refreshBtn").addEventListener("click", refreshStorage);
-
-// ---- initial load ----
-(async () => {
-  try {
-    const check = await getByte({ line: 0, byte: 0, useLocal: false });
-    if (check.value === "00000000") {
-      await upload();
-    }
-  } catch (_) { /* ignore */ }
-  await refreshStorage();
-})();
-</script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
